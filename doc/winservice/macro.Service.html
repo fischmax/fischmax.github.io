@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Service` macro in crate `winservice`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Service">
+
+    <title>winservice::Service - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='index.html'>winservice</a></p><script>window.sidebarCurrent = {name: 'Service', ty: 'macro', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content macro">
+<h1 class='fqn'><span class='in-band'>Macro <a href='index.html'>winservice</a>::<wbr><a class='macro' href=''>Service</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-161' class='srclink' href='../src/winservice/src/lib.rs.html#83-87' title='goto source code'>[src]</a></span></h1>
+<pre class='rust macro'>
+<span class='macro'>macro_rules</span><span class='macro'>!</span> <span class='ident'>Service</span> {
+    ( <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>name</span>:<span class='ident'>expr</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>function</span>:<span class='ident'>ident</span> ) <span class='op'>=&gt;</span> { ... };
+}</pre>
+<div class='docblock'><p>Create and run the provided function as Windows system service.</p>
+
+<p>This takes the service name as a <code>str</code> expression and the function which contains the service&#39;s
+main loop as arguments and immediately starts the service. Once this macro returns, the Service
+Control Manager (SCM) has stopped the service and your program may terminate. The service
+function gets a <code>Vec&lt;String&gt;</code> containing the arguments provided by the SCM (these are <strong>not</strong>
+the command line arguments of your EXE!) as well as a <code>Receiver&lt;()&gt;</code> which, when signalled,
+indicates that the SCM wants the service to stop. When that happens, the service function
+should return a <code>u32</code> exit code, which will prompt this crate to perform some cleanup and
+return from <code>Service!</code>.</p>
+
+<p>To actually run the service, you have to install your binary from an Administrator console
+window with</p>
+
+<pre><code class="language-text">sc create myService binPath=&lt;Path to your compiled executable&gt;
+</code></pre>
+
+<p>It is important that you provide the same service name to the macro (see below).</p>
+
+<p>Once everything is set up, you can start and stop your service from the SCM by typing
+<code>services.msc</code> into the Windows prompt; starting the EXE directly will have no effect since
+the SCM will reject all attempts to register a ServiceMain function which it did not request.</p>
+
+<h1 id='examples' class='section-header'><a href='#examples'>Examples</a></h1>
+<pre class='rust rust-example-rendered'>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>no_main</span>]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>feature</span>(<span class='ident'>link_args</span>)]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>link_args</span> <span class='op'>=</span> <span class='string'>&quot;-Wl,--subsystem,windows&quot;</span>]</span>
+
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>os</span>::<span class='ident'>raw</span>::{<span class='ident'>c_char</span>, <span class='ident'>c_int</span>, <span class='ident'>c_void</span>};
+<span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>sync</span>::<span class='ident'>mpsc</span>::<span class='ident'>Receiver</span>;
+
+<span class='attribute'>#[<span class='ident'>macro_use</span>]</span>
+<span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>winservice</span>;
+
+<span class='attribute'>#[<span class='ident'>allow</span>(<span class='ident'>non_snake_case</span>)]</span>
+<span class='attribute'>#[<span class='ident'>no_mangle</span>]</span>
+<span class='kw'>pub</span> <span class='kw'>extern</span> <span class='string'>&quot;system&quot;</span> <span class='kw'>fn</span> <span class='ident'>WinMain</span>(<span class='ident'>hInstance</span> : <span class='op'>*</span><span class='kw'>const</span> <span class='ident'>c_void</span>, <span class='ident'>hPrevInstance</span> : <span class='op'>*</span><span class='kw'>const</span> <span class='ident'>c_void</span>,
+    <span class='ident'>lpCmdLine</span> : <span class='op'>*</span><span class='kw'>const</span> <span class='ident'>c_char</span>, <span class='ident'>nCmdShow</span> : <span class='ident'>c_int</span>) <span class='op'>-&gt;</span> <span class='ident'>c_int</span>
+{
+    <span class='macro'>Service</span><span class='macro'>!</span>(<span class='string'>&quot;myService&quot;</span>, <span class='ident'>service_main</span>)
+}
+
+<span class='kw'>fn</span> <span class='ident'>service_main</span>(<span class='ident'>args</span> : <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>String</span><span class='op'>&gt;</span>, <span class='ident'>end</span> : <span class='ident'>Receiver</span><span class='op'>&lt;</span>()<span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>u32</span> {
+    <span class='kw'>loop</span> {
+        <span class='comment'>// Do some work</span>
+        <span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Ok</span>(_) <span class='op'>=</span> <span class='ident'>end</span>.<span class='ident'>try_recv</span>() { <span class='kw'>break</span>; } }
+    <span class='number'>0</span> }
+<a class='test-arrow' target='_blank' href=''>Run</a></pre>
+
+<h1 id='how-it-works' class='section-header'><a href='#how-it-works'>How it works</a></h1>
+<p>Since The ServiceCtrlDispatcher doesn&#39;t allow for a custom pointer to be passed to ServiceMain,
+we cannot use a closure or any other means to obtain context information about the way we are
+called. Thus the only option is to have a separate ServiceMain function for each call of
+<code>Service!</code>. But since winservice will already be compiled when you want to create your service,
+we have to do it here. The macro creates said ServiceMain function as a wrapper which calls
+directly into the crate with your custom service_main and then feeds this wrapper to the
+ServiceCtrlDispatcher.</p>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "winservice";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../jquery.js"></script>
+    <script src="../main.js"></script>
+    
+    <script defer src="../search-index.js"></script>
+</body>
+</html>
